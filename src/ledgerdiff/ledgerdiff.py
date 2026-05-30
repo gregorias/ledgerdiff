@@ -118,7 +118,7 @@ def serialize_two_sections_into_one_diff(
     return res
 
 
-def is_sp_ordered(p) -> bool:
+def is_section_part_ordered(p) -> bool:
     if isinstance(p, UndatedSection) or isinstance(p, UndatedSectionChunk):
         return False
     elif isinstance(p, tuple):  # For the test case (status, text)
@@ -126,7 +126,7 @@ def is_sp_ordered(p) -> bool:
     return True
 
 
-def get_sp_content(p):
+def get_section_part_content(p):
     if isinstance(p, UndatedSection):
         return p.content
     elif isinstance(p, DatedSection):
@@ -159,9 +159,9 @@ def match_filler_ranges(diffs: List[Diff]) -> List[Diff]:
 
     match p0:
         case Both(l, r):
-            return [Both(get_sp_content(l), get_sp_content(r))] + match_filler_ranges(
-                ps0
-            )
+            return [
+                Both(get_section_part_content(l), get_section_part_content(r))
+            ] + match_filler_ranges(ps0)
 
         case Second():
             flipped_diffs: List[Diff] = [flip_diff(d) for d in diffs]
@@ -169,67 +169,73 @@ def match_filler_ranges(diffs: List[Diff]) -> List[Diff]:
             return [flip_diff(d) for d in result]
 
         case First(f0):
-            if is_sp_ordered(f0):
-                return [First(get_sp_content(f0))] + match_filler_ranges(ps0)
+            if is_section_part_ordered(f0):
+                return [First(get_section_part_content(f0))] + match_filler_ranges(ps0)
 
             # f0 is filler
             match ps0:
                 case []:
-                    return [First(get_sp_content(f0))]
+                    return [First(get_section_part_content(f0))]
 
                 case [Both(l, r), *rest]:
                     return [
-                        First(get_sp_content(f0)),
-                        Both(get_sp_content(l), get_sp_content(r)),
+                        First(get_section_part_content(f0)),
+                        Both(get_section_part_content(l), get_section_part_content(r)),
                     ] + match_filler_ranges(
                         rest
                     )  # type: ignore
 
                 case [Second(s1), *rest]:
-                    if is_sp_ordered(s1):
-                        return [Second(get_sp_content(s1))] + match_filler_ranges(
-                            [p0] + rest
-                        )
+                    if is_section_part_ordered(s1):
+                        return [
+                            Second(get_section_part_content(s1))
+                        ] + match_filler_ranges([p0] + rest)
 
                     # s1 is filler
                     match rest:
                         case [First(f2), First(), *_]:
                             return [
-                                First(get_sp_content(f0)),
-                                First(get_sp_content(f2)),
+                                First(get_section_part_content(f0)),
+                                First(get_section_part_content(f2)),
                             ] + match_filler_ranges([ps0[0]] + rest[1:])
                         case [Second(s2), Second(), *_]:
                             return [
-                                Second(get_sp_content(s1)),
-                                Second(get_sp_content(s2)),
+                                Second(get_section_part_content(s1)),
+                                Second(get_section_part_content(s2)),
                             ] + match_filler_ranges([p0] + rest[1:])
                         case _:
                             return [
-                                Both(get_sp_content(f0), get_sp_content(s1))
+                                Both(
+                                    get_section_part_content(f0),
+                                    get_section_part_content(s1),
+                                )
                             ] + match_filler_ranges(rest)
 
                 case [First(f1), *rest]:
                     match rest:
                         case [] | [First(), *_] | [Both(), *_]:
-                            return [First(get_sp_content(f0))] + match_filler_ranges(
-                                ps0
-                            )
+                            return [
+                                First(get_section_part_content(f0))
+                            ] + match_filler_ranges(ps0)
                         case [Second(s2), *rest2]:
-                            if is_sp_ordered(s2):
+                            if is_section_part_ordered(s2):
                                 return [
-                                    First(get_sp_content(f0))
+                                    First(get_section_part_content(f0))
                                 ] + match_filler_ranges(ps0)
 
                             # s2 is filler
                             match rest2:
                                 case [First(), *_]:
                                     return [
-                                        First(get_sp_content(f0)),
-                                        First(get_sp_content(f1)),
+                                        First(get_section_part_content(f0)),
+                                        First(get_section_part_content(f1)),
                                     ] + match_filler_ranges(rest)
                                 case _:
                                     return [
-                                        Both(get_sp_content(f0), get_sp_content(s2))
+                                        Both(
+                                            get_section_part_content(f0),
+                                            get_section_part_content(s2),
+                                        )
                                     ] + match_filler_ranges([ps0[0]] + rest2)
     return []
 
