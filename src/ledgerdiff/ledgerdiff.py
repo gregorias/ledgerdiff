@@ -157,89 +157,80 @@ def match_filler_ranges(diffs: List[Diff]) -> List[Diff]:
     p0 = diffs[0]
     ps0 = diffs[1:]
 
-    if isinstance(p0, First):
-        f0 = p0.content
-        if is_sp_ordered(f0):
-            return [First(get_sp_content(f0))] + match_filler_ranges(ps0)
-        else:
-            if not ps0:
-                return [First(get_sp_content(f0))]
-            p1 = ps0[0]
-            ps1 = ps0[1:]
-            if isinstance(p1, Second):
-                s1 = p1.content
-                if is_sp_ordered(s1):
-                    return [Second(get_sp_content(s1))] + match_filler_ranges(
-                        [p0] + ps1
-                    )
-                else:
-                    if (
-                        ps1
-                        and isinstance(ps1[0], First)
-                        and len(ps1) > 1
-                        and isinstance(ps1[1], First)
-                    ):
-                        f2 = ps1[0].content
-                        return [
-                            First(get_sp_content(f0)),
-                            First(get_sp_content(f2)),
-                        ] + match_filler_ranges([p1] + ps1[1:])
-                    elif (
-                        ps1
-                        and isinstance(ps1[0], Second)
-                        and len(ps1) > 1
-                        and isinstance(ps1[1], Second)
-                    ):
-                        s2 = ps1[0].content
-                        return [
-                            Second(get_sp_content(s1)),
-                            Second(get_sp_content(s2)),
-                        ] + match_filler_ranges([p0] + ps1[1:])
-                    else:
-                        return [
-                            Both(get_sp_content(f0), get_sp_content(s1))
-                        ] + match_filler_ranges(ps1)
-            elif isinstance(p1, First):
-                f1 = p1.content
-                if not ps1 or isinstance(ps1[0], First) or isinstance(ps1[0], Both):
-                    return [First(get_sp_content(f0))] + match_filler_ranges(ps0)
-                elif isinstance(ps1[0], Second):
-                    p2 = ps1[0]
-                    ps2 = ps1[1:]
-                    s2 = p2.content
-                    if is_sp_ordered(s2):
-                        return [First(get_sp_content(f0))] + match_filler_ranges(ps0)
-                    else:
-                        if ps2 and isinstance(ps2[0], First):
+    match p0:
+        case Both(l, r):
+            return [Both(get_sp_content(l), get_sp_content(r))] + match_filler_ranges(
+                ps0
+            )
+
+        case Second():
+            flipped_diffs: List[Diff] = [flip_diff(d) for d in diffs]
+            result = match_filler_ranges(flipped_diffs)
+            return [flip_diff(d) for d in result]
+
+        case First(f0):
+            if is_sp_ordered(f0):
+                return [First(get_sp_content(f0))] + match_filler_ranges(ps0)
+
+            # f0 is filler
+            match ps0:
+                case []:
+                    return [First(get_sp_content(f0))]
+
+                case [Both(l, r), *rest]:
+                    return [
+                        First(get_sp_content(f0)),
+                        Both(get_sp_content(l), get_sp_content(r)),
+                    ] + match_filler_ranges(
+                        rest
+                    )  # type: ignore
+
+                case [Second(s1), *rest]:
+                    if is_sp_ordered(s1):
+                        return [Second(get_sp_content(s1))] + match_filler_ranges(
+                            [p0] + rest
+                        )
+
+                    # s1 is filler
+                    match rest:
+                        case [First(f2), First(), *_]:
                             return [
                                 First(get_sp_content(f0)),
-                                First(get_sp_content(f1)),
-                            ] + match_filler_ranges(
-                                ps1
-                            )  # type: ignore
-                        else:
+                                First(get_sp_content(f2)),
+                            ] + match_filler_ranges([ps0[0]] + rest[1:])
+                        case [Second(s2), Second(), *_]:
                             return [
-                                Both(get_sp_content(f0), get_sp_content(s2))
-                            ] + match_filler_ranges([p1] + ps2)
-            elif isinstance(p1, Both):
-                left_item, right_item = p1.left, p1.right
-                return [
-                    First(get_sp_content(f0)),
-                    Both(get_sp_content(left_item), get_sp_content(right_item)),
-                ] + match_filler_ranges(
-                    ps1
-                )  # type: ignore
+                                Second(get_sp_content(s1)),
+                                Second(get_sp_content(s2)),
+                            ] + match_filler_ranges([p0] + rest[1:])
+                        case _:
+                            return [
+                                Both(get_sp_content(f0), get_sp_content(s1))
+                            ] + match_filler_ranges(rest)
 
-    elif isinstance(p0, Second):
-        flipped_diffs: List[Diff] = [flip_diff(d) for d in diffs]
-        result = match_filler_ranges(flipped_diffs)
-        return [flip_diff(d) for d in result]
+                case [First(f1), *rest]:
+                    match rest:
+                        case [] | [First(), *_] | [Both(), *_]:
+                            return [First(get_sp_content(f0))] + match_filler_ranges(
+                                ps0
+                            )
+                        case [Second(s2), *rest2]:
+                            if is_sp_ordered(s2):
+                                return [
+                                    First(get_sp_content(f0))
+                                ] + match_filler_ranges(ps0)
 
-    elif isinstance(p0, Both):
-        return [
-            Both(get_sp_content(p0.left), get_sp_content(p0.right))
-        ] + match_filler_ranges(ps0)
-
+                            # s2 is filler
+                            match rest2:
+                                case [First(), *_]:
+                                    return [
+                                        First(get_sp_content(f0)),
+                                        First(get_sp_content(f1)),
+                                    ] + match_filler_ranges(rest)
+                                case _:
+                                    return [
+                                        Both(get_sp_content(f0), get_sp_content(s2))
+                                    ] + match_filler_ranges([ps0[0]] + rest2)
     return []
 
 
