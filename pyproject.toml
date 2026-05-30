@@ -1,0 +1,32 @@
+[project]
+name = "ledgerdiff"
+version = "2.0.0"
+description = "Generates a smart chronological diff on two Ledger files."
+requires-python = ">=3.13"
+readme = "README.md"
+license = { "text" = "AGPL-3.0" }
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+  "Operating System :: OS Independent",
+]
+dependencies = ["parsy>=2.2"]
+
+[project.urls]
+Repository = "https://github.com/gregorias/ledger-sak"
+
+[project.scripts]
+ledgerdiff = "ledgerdiff.cli:main"
+
+[dependency-groups]
+dev = [
+  "black>=25.11.0",
+  "mypy>=1.19.1",
+  "ruff>=0.15.15",
+  "validate-pyproject>=0.25",
+  "vulture>=2.16",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
